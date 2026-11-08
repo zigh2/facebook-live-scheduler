@@ -1,0 +1,20 @@
+# secrets and local data - NEVER commit
+.env
+config.yaml
+queue.csv
+state/
+logs/
+*.log
+
+# media
+*.mp4
+*.mkv
+*.mov
+
+# python
+__pycache__/
+*.egg-info/
+.venv/
+build/
+dist/
+.pytest_cache/

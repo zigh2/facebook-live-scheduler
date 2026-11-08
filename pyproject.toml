@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fb-live-scheduler"
+dynamic = ["version"]
+description = "Scheduled, unattended Facebook Live broadcasts of video files through OBS"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = ["requests>=2.28", "PyYAML>=6", "websocket-client>=1.6", "tzdata; platform_system=='Windows'"]
+
+[project.optional-dependencies]
+dev = ["pytest", "websockets>=12"]
+
+[project.scripts]
+fblive = "fblive.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "fblive.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

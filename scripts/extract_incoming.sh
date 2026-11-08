@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Replace the repository contents with the newest archive (.zip / .7z) found in incoming/.
+# Used by .github/workflows/extract-incoming.yml (copied to /tmp first, because it replaces itself).
+set -euo pipefail
+
+shopt -s nullglob nocaseglob
+archives=(incoming/*.zip incoming/*.7z)
+shopt -u nocaseglob
+
+if [ ${#archives[@]} -eq 0 ]; then
+  echo "No archive in incoming/ - nothing to do."
+  exit 0
+fi
+
+ARCHIVE=$(printf '%s\n' "${archives[@]}" | sort | tail -n 1)
+echo "Using archive: $ARCHIVE (found ${#archives[@]})"
+
+if ! command -v 7z >/dev/null 2>&1; then
+  SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"
+  $SUDO apt-get update -qq && { $SUDO apt-get install -y -qq p7zip-full || $SUDO apt-get install -y -qq 7zip; }
+  command -v 7z >/dev/null 2>&1 || ln -sf "$(command -v 7zz || command -v 7za)" /usr/local/bin/7z
+fi
+
+if ! command -v rsync >/dev/null 2>&1; then
+  SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"
+  $SUDO apt-get update -qq && $SUDO apt-get install -y -qq rsync
+fi
+
+TMP=$(mktemp -d)
+7z x -y -o"$TMP/x" "$ARCHIVE" >/dev/null
+
+# If the archive holds a single top-level folder, use its contents.
+SRC="$TMP/x"
+mapfile -t top < <(find "$SRC" -mindepth 1 -maxdepth 1)
+if [ ${#top[@]} -eq 1 ] && [ -d "${top[0]}" ]; then
+  SRC="${top[0]}"
+fi
+
+FILES=$(find "$SRC" -type f ! -path '*/.git/*' | wc -l)
+if [ "$FILES" -lt 3 ]; then
+  echo "Archive looks empty/invalid ($FILES files) - refusing to replace the project." >&2
+  exit 1
+fi
+
+# .github is never touched (GITHUB_TOKEN cannot push workflow changes); incoming/ is kept.
+rsync -a --delete --exclude='.git/' --exclude='.github/' --exclude='incoming/' "$SRC"/ ./
+
+rm -f incoming/*.zip incoming/*.ZIP incoming/*.7z incoming/*.7Z
+mkdir -p incoming
+[ -e incoming/README.md ] || printf 'Put the project archive (.zip or .7z) here.\n' > incoming/README.md
+
+git add -A
+if git diff --cached --quiet; then
+  echo "No changes."
+  exit 0
+fi
+
+VERSION=""
+if [ -f src/fblive/__init__.py ]; then
+  VERSION=$(sed -n 's/^__version__ *= *"\(.*\)".*/\1/p' src/fblive/__init__.py | head -n 1)
+fi
+TAG=""
+if [ -n "$VERSION" ]; then
+  TAG="v${VERSION}-$(date -u +%d%m%y)"
+fi
+
+git config user.name  "github-actions[bot]"
+git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+git commit -q -m "Update project from incoming archive${TAG:+ ($TAG)}"
+
+if [ -n "$TAG" ]; then
+  base="$TAG"; n=2
+  while git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; do TAG="${base}-${n}"; n=$((n+1)); done
+  git tag "$TAG"
+  echo "Tagged $TAG"
+fi
+
+if [ "${NO_PUSH:-}" = "1" ]; then
+  echo "NO_PUSH=1 - skipping push"
+else
+  git push origin HEAD --follow-tags
+fi

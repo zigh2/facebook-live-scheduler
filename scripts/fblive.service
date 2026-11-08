@@ -1,0 +1,14 @@
+# Linux (systemd --user, needs OBS running in a graphical session):
+#   cp scripts/fblive.service ~/.config/systemd/user/ && systemctl --user enable --now fblive
+[Unit]
+Description=fblive - scheduled Facebook Live through OBS
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/fb-live-scheduler
+ExecStart=%h/fb-live-scheduler/.venv/bin/python -m fblive run
+Restart=always
+RestartSec=20
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,59 @@
+# انسخ هذا الملف باسم config.yaml وعدّل القيم.
+# الأسرار (رمز فيسبوك، كلمة مرور OBS) لا تُكتب هنا أبداً، بل في ملف .env
+
+engine: obs                 # المحرك المتاح حالياً: obs
+
+# المنطقة الزمنية. اتركها فارغة لاستخدام توقيت الجهاز المحلي.
+# مثال: Asia/Riyadh أو Africa/Cairo
+timezone:
+
+# مجلد الفيديوهات: أي مسار نسبي في الملفات أدناه يُقرأ منه
+media_dir: "D:/videos"
+
+# إذا تأخر تشغيل البرنامج عن الموعد (إعادة تشغيل الجهاز مثلاً) يبدأ البث
+# ما دام الوقت ضمن هذه المهلة، وإلا يُعتبر فائتاً ويُسجَّل في السجل.
+grace_minutes: 10
+retries: 2                  # عدد إعادة المحاولة عند فشل بدء البث
+retry_delay_seconds: 30
+
+facebook:
+  page_id: ""               # أو FB_PAGE_ID في .env (يضعه الأمر fblive setup-token)
+  graph_version: v26.0
+
+obs:
+  host: localhost
+  port: 4455                # نفس المنفذ في OBS: Tools > WebSocket Server Settings
+  # كلمة المرور في .env  (OBS_PASSWORD)
+  scene: FBLive             # يُنشأ تلقائياً إن لم يوجد
+  idle_scene: FBLive_Idle   # مشهد فارغ يبدأ عليه البث قبل تشغيل الفيديو
+  input_name: FBLive_Media
+  hw_decode: true           # فك ترميز بكرت الشاشة (مهم لملفات H265 و4K)
+  start_delay_seconds: 3
+  # لتشغيل OBS تلقائياً إن كان مغلقاً (اختياري):
+  # executable: "C:/Program Files/obs-studio/bin/64bit/obs64.exe"
+  launch_wait_seconds: 60
+
+# ملف يحمل ffprobe (يأتي مع FFmpeg). اتركه كما هو إن كان ضمن PATH.
+# يستخدم للتحقق من الملف قبل البث (وجود صوت، مدة الفيديو).
+ffprobe: ffprobe
+
+# البثان الثابتان. يمكن استعمال {date} و{weekday_ar} في العنوان والوصف.
+fixed_streams:
+  - name: morning
+    time: "07:00"
+    file: "morning.mp4"
+    title: "بث الصباح - {date}"
+    description: "وصف بث الصباح"
+    days: all               # أو: [sat, sun, mon]
+
+  - name: evening
+    time: "20:00"
+    file: "evening.mp4"
+    title: "بث المساء - {date}"
+    description: "وصف بث المساء"
+    days: all
+
+# البث الثالث المتغير: من ملف CSV (انظر queue.example.csv)
+queue:
+  csv: queue.csv
+  name: daily
